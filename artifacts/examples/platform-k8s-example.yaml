@@ -1,0 +1,101 @@
+---
+apiVersion: platform.k8s.io/v1beta1
+kind: Platform
+metadata:
+  name: my-platform
+spec:
+  name: My Custom Platform
+  description: |
+    This custom platform provides the global and container services and no others.
+  services:
+    global:
+      - uid: global
+    container:
+      - uid: container
+---
+apiVersion: platform.k8s.io/v1beta1
+kind: PlatformService
+metadata:
+  name: global-config-service
+spec:
+  name: Global Config Service
+  uid: global
+  description: |
+    The global config service registers global config for your workload(s).
+    Any global config variable can be referenced within any dependent service
+    or anywhere else within a PlatformWorkload manifest.
+---
+apiVersion: platform.k8s.io/v1beta1
+kind: PlatformService
+metadata:
+  name: container-service
+spec:
+  name: Container Service
+  uid: container
+  description: |
+    The container service will create and manage a deployment for a container
+    to run.  It can be configured to use other services like volumes from the
+    storage service and images from the build or registry service.
+  params:
+    image:
+      type: Object
+      properties:
+        registry:
+        repository:
+        tag:
+    volumes:
+      type: [String]
+---
+apiVersion: platform.k8s.io/v1beta1
+kind: PlatformService
+metadata:
+  name: image-build-service
+spec:
+  name: Image Build Service
+  uid: build
+  description: |
+    The build service syncs with a git repository and automatically builds a
+    container image.  It requires the registry service to store images after
+    building.
+  depends:
+    registry: true
+---
+apiVersion: platform.k8s.io/v1beta1
+kind: PlatformWorkload
+metadata:
+  name:
+  namespace:
+  labels:
+spec:
+  global:
+    image: 
+      repo: alpine
+      tag: latest
+    git:
+      repo: https://github.com/platform.k8s.io/example
+      branch: master
+    domain: example.com
+    sans: ["*.example.com", "*.example.svc", "*.example.svc.cluster", "*.example.svc.cluster.local"]
+    data: /data
+  container:
+    image: &global.image.repo
+    tag: &global.image.tag
+    command:
+    - /bin/sh
+    - -c
+    - "while true; do sleep 1000; done"
+    volumes:
+    - &global.data
+  build: true
+  storage:
+    size: 20Gi
+    mountPath: &global.data
+  dns: true
+  certificate:
+    tlsversion: "TLS1.3+"
+  secrets:
+    generate:
+      password: "random(32)"
+  ingress: true
+  service-mesh: true
+  cicd: true
